@@ -116,6 +116,25 @@ async function extractOkRuStreams(iframeSrc) {
         }));
 }
 
+/** Extrae IDs de videos de YouTube de las URL y formatea los streams */
+async function extractYouTubeStreams(iframeSrc) {
+    try {
+        const ytURL = new URL(iframeSrc);
+        let ytId = ytURL.searchParams.get('v') || ytURL.pathname.split('/').pop();
+        return [{
+            name: 'LACartoons',
+            title: 'YouTube',
+            ytId,
+            behaviorHints: {
+                bingeGroup: 'lacartoons-yt',
+            },
+        }]
+    } catch (e) {
+        console.warn('[STREAM] URL de YouTube invalida:', iframeSrc);
+        return []
+    }
+}
+
 // ==================== Fallback generico via Playwright ====================
 // Para hosts que no soporta yt-dlp (ej. cubeembed.rpmvid.com y cualquier otro
 // reproductor JS moderno): abrimos la pagina real del capitulo en un
@@ -399,6 +418,10 @@ const VIDEO_HOSTS = [
     'streamtape', 'doodstream', 'player'
 ];
 
+const YT_HOSTS = [
+    'youtube.com', 'youtu.be'
+];
+
 // ==================== HTTP Client ====================
 const HTTP = axios.create({
     timeout: 20000,
@@ -630,11 +653,12 @@ async function getSeriesDetail(numId) {
         .get()
         .find(t => t.length > 30) || '';
 
-    // Ano de la serie, usado solo para fabricar fechas "released" validas
+    // Año de la serie, usado para fabricar fechas "released" validas
     // (Stremio exige ISO 8601 en cada video, aunque no sea la fecha real de emision)
-    const bodyText = $('body').text();
-    const yearMatch = bodyText.match(/A[nñ]o:\s*(\d{4})/);
-    const baseYear = yearMatch ? parseInt(yearMatch[1]) : 2000;
+    // const bodyText = $('body').text();
+    // const yearMatch = bodyText.match(/A[nñ]o:\s*(\d{4})/);
+    // const baseYear = yearMatch ? parseInt(yearMatch[1]) : 2000;
+    const baseYear = parseInt($('span.marcador-año').first().text().trim()) || 2000;
 
     const episodes = extractEpisodesFromPage($);
 
@@ -705,7 +729,7 @@ builder.defineMetaHandler(async ({ id }) => {
         }));
 
         return {
-            meta: { id, type: 'series', name, poster, background, description, videos, genres, links, language }
+            meta: { id, type: 'series', name, poster, background, description, videos, releaseInfo: `${baseYear}`, released: new Date(baseYear, 0, 1).toISOString(), genres, links, language }
         };
     } catch (e) {
         console.error('[META ERROR]', e.message);
@@ -758,13 +782,25 @@ builder.defineStreamHandler(async ({ id }) => {
         });
 
         if (iframeSrc) {
-            console.log('[STREAM] Host conocido, usando yt-dlp:', iframeSrc);
-            const streams = await extractOkRuStreams(iframeSrc);
-            if (streams.length) {
-                console.log('[STREAM] Streams HLS:', streams.map(s => s.title).join(', '));
-                return { streams };
+            if (YT_HOSTS.some(h => iframeSrc.includes(h))) {
+                console.log('[STREAM] Extrayendo URL de YouTube:', iframeSrc);
+
+                const streams = await extractYouTubeStreams(iframeSrc);
+                if (!streams.length) {
+                    console.warn('[STREAM] No se pudo extraer la ID del video de YouTube.');
+                    return { streams: [] };
+                }
+
+                console.log('[STREAM] Streams YT:', streams.map(s => s.title).join(', '));
+            } else {
+                console.log('[STREAM] Host conocido, usando yt-dlp:', iframeSrc);
+                const streams = await extractOkRuStreams(iframeSrc);
+                if (streams.length) {
+                    console.log('[STREAM] Streams HLS:', streams.map(s => s.title).join(', '));
+                    return { streams };
+                }
+                console.warn('[STREAM] yt-dlp no devolvio streams, se intenta fallback generico...');
             }
-            console.warn('[STREAM] yt-dlp no devolvio streams, se intenta fallback generico...');
         } else {
             console.log('[STREAM] Sin host conocido en la pagina, usando fallback Playwright.');
         }
@@ -773,7 +809,6 @@ builder.defineStreamHandler(async ({ id }) => {
             console.warn('[STREAM] Playwright no disponible; no se puede resolver este episodio.');
             return { streams: [] };
         }
-
         // Navegar Playwright directamente a la URL del embed (ej. cubeembed)
         // en vez de la pagina del episodio. Esto convierte las peticiones del
         // reproductor en peticiones del main frame, haciendolas visibles a
