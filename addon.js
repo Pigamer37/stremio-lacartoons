@@ -37,10 +37,27 @@ try {
 const BASE_URL = process.env.BASE_URL || 'https://lacartoons.com';
 const PORT = process.env.PORT || 7000;
 // Soporte Multiplataforma: Windows usa nuestro yt-dlp.exe descargado,
-// Mac/Linux usaran el 'yt-dlp' instalado globalmente en el sistema.
+// Mac/Linux usaran los binarios yt-dlp_linux y yt-dlp_macos descargados.
 const YT_DLP = process.env.YT_DLP_PATH
     ? path.resolve(__dirname, process.env.YT_DLP_PATH)
-    : (process.platform === 'win32' ? path.resolve(__dirname, 'yt-dlp.exe') : 'yt-dlp');
+    : (() => {
+        let fileName;
+        switch (process.platform) {
+            case 'win32':
+                fileName = 'yt-dlp.exe';
+                break;
+            case 'linux':
+                fileName = 'yt-dlp_linux';
+                break;
+            case 'darwin':
+                fileName = 'yt-dlp_macos';
+                break;
+            default:
+                fileName = 'yt-dlp';
+                break;
+        }
+        return path.resolve(__dirname, fileName);
+    })();
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36';
 
 // URL base del addon para reescribir playlists del proxy HLS.
