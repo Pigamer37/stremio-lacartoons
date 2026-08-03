@@ -1,4 +1,4 @@
-FROM node:18-bookworm
+FROM node:20-bookworm
 
 # Instalar dependencias del sistema para Playwright
 RUN apt-get update && apt-get install -y \
