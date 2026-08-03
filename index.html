@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LACartoons - Stremio Addon</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        h1 {
+            color: #ff4081; /* Color rosa vibrante */
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        p.subtitle {
+            font-size: 1.2rem;
+            color: #cccccc;
+            margin-bottom: 30px;
+        }
+        .logo {
+            max-width: 150px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+        }
+        .btn-install {
+            background-color: #00c853; /* Verde Stremio */
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            text-decoration: none;
+            border-radius: 50px;
+            display: inline-block;
+            margin: 20px 0;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0, 200, 83, 0.4);
+            transition: transform 0.2s;
+        }
+        .btn-install:hover {
+            transform: scale(1.05);
+            background-color: #00b347;
+        }
+        .features {
+            text-align: left;
+            background: #2d2d2d;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 30px 0;
+        }
+        .features h3 { margin-top: 0; }
+        .features ul { padding-left: 20px; }
+        
+        /* Sección de Opiniones */
+        .reviews-section {
+            background: #252525;
+            padding: 30px;
+            border-radius: 10px;
+            margin-top: 40px;
+            text-align: left;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            background: #333;
+            color: white;
+            font-family: inherit;
+        }
+        button[type="submit"] {
+            background-color: #ff4081;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        button[type="submit"]:hover {
+            background-color: #e91e63;
+        }
+        .footer {
+            margin-top: 50px;
+            font-size: 0.9rem;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Logo -->
+        <img src="https://raw.githubusercontent.com/masilvasol/stremio-lacartoons/main/logo.png" alt="LACartoons Logo" class="logo">
+        
+        <h1>LACartoons Addon</h1>
+        <p class="subtitle">Disfruta de las mejores caricaturas clásicas en Español Latino directamente en Stremio.</p>
+
+        <!-- Botón de Instalación -->
+        <a href="https://stremio-lacartoons-h7ha.onrender.com/manifest.json" class="btn-install" onclick="window.location.href='stremio:///addons/install?manifestUrl=https://stremio-lacartoons-h7ha.onrender.com/manifest.json'">
+            📥 Instalar en Stremio
+        </a>
+        <p style="font-size: 0.9rem; color: #888;">Haz clic para instalar automáticamente en tu PC o TV.</p>
+
+        <!-- Características -->
+        <div class="features">
+            <h3>✨ Características</h3>
+            <ul>
+                <li><strong>510+ Series:</strong> Catálogo completo de clásicos.</li>
+                <li><strong>Alta Calidad:</strong> Streaming optimizado en 720p/1080p.</li>
+                <li><strong>Sin Anuncios:</strong> Experiencia limpia y rápida.</li>
+                <li><strong>Multiplataforma:</strong> Funciona en PC, Android, Apple TV y más.</li>
+                <li><strong>Gratuito:</strong> Código abierto y siempre gratis.</li>
+            </ul>
+        </div>
+
+        <!-- Sección de Opiniones -->
+        <div class="reviews-section">
+            <h3>💬 ¿Qué opinas del addon?</h3>
+            <p>Tu opinión me ayuda a mejorar. ¡Déjame un comentario!</p>
+            
+            <!-- Formulario simple que envía a GitHub Issues o un Google Form -->
+            <!-- NOTA: Para que funcione sin backend, usamos un truco con mailto o Google Forms. 
+                 Aquí usaremos un enlace a un Google Form (creado por ti) o un simple mailto. -->
+            
+            <form action="https://github.com/masilvasol/stremio-lacartoons/issues/new" method="get" target="_blank">
+                <div class="form-group">
+                    <label for="review">Tu opinión:</label>
+                    <textarea id="review" name="body" rows="4" placeholder="Escribe aquí tu experiencia usando LACartoons..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="rating">Calificación (opcional):</label>
+                    <input type="text" id="rating" name="title" placeholder="Ej: ¡Me encanta! 5 estrellas ⭐⭐⭐⭐⭐">
+                </div>
+                <button type="submit">Enviar Opinión a GitHub</button>
+            </form>
+            <p style="font-size: 0.8rem; color: #888; margin-top: 10px;">
+                * Al enviar, se abrirá una ventana en GitHub para que puedas registrar tu comentario públicamente.
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>Desarrollado por Miguel Silva | v1.0.0 Estable</p>
+            <p><a href="https://github.com/masilvasol/stremio-lacartoons" style="color: #ff4081;">Ver Código en GitHub</a></p>
+        </div>
+    </div>
+
+</body>
+</html>
