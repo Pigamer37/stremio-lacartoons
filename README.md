@@ -11,7 +11,22 @@ Este proyecto es un complemento (addon) de código abierto para [Stremio](https:
 * **Respaldo con `yt-dlp`:** Uso integrado de herramientas de extracción secundaria para garantizar la estabilidad de los reproductores externos.
 
 ---
+### 🚀 Mejoras Recientes y Estado del Proyecto
 
+Este addon se actualiza constantemente para mejorar la estabilidad, seguridad y experiencia de usuario. Las últimas incorporaciones incluyen:
+
+| Área | Mejora Implementada | Impacto para el Usuario |
+| :--- | :--- | :--- |
+| **🛡️ Seguridad** | Parche **CVE-2024-45296** (`path-to-regexp`) | Protege el servidor de ataques de denegación de servicio (ReDoS). |
+| **💻 Multiplataforma** | Soporte nativo para **Linux y macOS** | Binarios `yt-dlp` incluidos para todos los sistemas operativos (PR #22). |
+| **🎬 Calidad de Video** | Soporte para **HLS nativo** y corrección de Stremio Web | Reproducción fluida en navegadores y resolución óptima (PR #15, #19). |
+| **🔍 Catálogo** | Filtros por género, cadena y sección "Recomendadas" | Búsqueda más precisa y descubrimiento de contenido (PR #11, #13). |
+| **⚙️ Estabilidad** | Actualización a **Node.js 20** y Docker | Mayor rendimiento del servidor y compatibilidad con entornos modernos. |
+| **🔗 Enlaces** | Uso de enlaces nativos de YouTube (sin proxy) | Carga más rápida y menor latencia en videos de YouTube (PR #7). |
+
+> **Nota de Seguridad:** La actualización de `path-to-regexp` fue aplicada automáticamente por herramientas de seguridad IA y verificada manualmente para garantizar la compatibilidad con todas las rutas del addon.
+
+---
 ## 🛠️ Requisitos Previos
 
 Antes de realizar la instalación, asegúrate de contar con los siguientes elementos en tu sistema:
