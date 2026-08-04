@@ -951,6 +951,16 @@ builder.defineStreamHandler(async ({ id }, req) => {
 // ==================== Servidor ====================
 const app = express();
 
+// ==================== CABECERAS CORS GLOBALES ====================
+// Permite que Stremio y otros clientes se conecten desde cualquier origen
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+    next();
+});
+// =================================================================
+
 // -------------------- Proxy HLS / MP4 --------------------
 // Varios hosts (ok.ru/okcdn.ru, cubeembed.rpmvid.com, etc.) exigen cabeceras
 // (Referer/Origin/Cookie) y no envian CORS, por lo que el navegador (Stremio
