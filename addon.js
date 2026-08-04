@@ -1127,6 +1127,14 @@ app.use(addon.getRouter(builder.getInterface()));
 // ==================== Inicialización del Servidor ====================
 const finalPort = process.env.PORT || 7000;
 
+// ==================== RUTA DE SALUD (HEALTH CHECK) ====================
+// Esta ruta es necesaria para que Render y los monitores externos (UptimeRobot)
+// sepan que el servicio está activo. Sin esto, Render apaga el servicio gratuito.
+app.get('/', (req, res) => {
+    res.status(200).send('LACartoons Addon is running! OK');
+});
+// ========================================================================
+
 app.listen(PORT, () => {
     console.log(`================================================`);
     console.log(`         LACartoons Addon Inicializado`);
