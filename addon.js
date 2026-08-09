@@ -34,9 +34,30 @@ try {
 }
 
 // ==================== Configuracion ====================
-const BASE_URL = 'https://lacartoons.com';
-const YT_DLP = path.resolve(__dirname, 'yt-dlp.exe');
-const PORT = 7000;
+const BASE_URL = process.env.BASE_URL || 'https://lacartoons.com';
+const PORT = process.env.PORT || 7000;
+// Soporte Multiplataforma: Windows usa nuestro yt-dlp.exe descargado,
+// Mac/Linux usaran los binarios yt-dlp_linux y yt-dlp_macos descargados.
+const YT_DLP = process.env.YT_DLP_PATH
+    ? path.resolve(__dirname, process.env.YT_DLP_PATH)
+    : (() => {
+        let fileName;
+        switch (process.platform) {
+            case 'win32':
+                fileName = 'yt-dlp.exe';
+                break;
+            case 'linux':
+                fileName = 'yt-dlp_linux';
+                break;
+            case 'darwin':
+                fileName = 'yt-dlp_macos';
+                break;
+            default:
+                fileName = 'yt-dlp';
+                break;
+        }
+        return path.resolve(__dirname, fileName);
+    })();
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36';
 
 // URL base del addon para reescribir playlists del proxy HLS.
@@ -75,8 +96,8 @@ const b64urlDecode = s => Buffer.from(s, 'base64url').toString('utf8');
 // `headers` viaja codificado junto con la URL, para que el proxy pueda
 // reenviar exactamente los headers que el host de origen exige (Referer,
 // Origin, Cookie, etc.), sin importar de que sitio venga el video.
-function proxyUrl(targetUrl, kind, headers) {
-    const payload = JSON.stringify({ u: targetUrl, h: headers || {} });
+function proxyUrl(targetUrl, kind, headers, isRpmvid = false) {
+    const payload = JSON.stringify({ u: targetUrl, h: headers || {}, r: isRpmvid ? 1 : 0 });
     return `${PUBLIC_URL}/p/${b64urlEncode(payload)}.${kind}`;
 }
 
@@ -494,7 +515,7 @@ const HTTP = axios.create({
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
-        'Referer': BASE_URL,
+        'Referer': process.env.BASE_URL || 'https://lacartoons.com',
     }
 });
 
@@ -859,13 +880,13 @@ builder.defineStreamHandler(async ({ id }, req) => {
                     console.log(`[PROCESADOR] Video descifrado con exito: ${streamResult.title || 'OK'}`);
 
                     return {
-                        streams: [{
+                        streams: [
+                            {
                                 name: 'LACartoons',
-                                title: streamResult.title || 'HD',
+                                title: (streamResult.title || 'HD') + ' (directo)',
                                 url: streamResult.url,
                                 behaviorHints: {
                                     bingeGroup: 'lacartoons-rpmvid-dir',
-                                    notWebReady: true,
                                     proxyHeaders: {
                                         "request": RPMVID_HEADERS
                                     }
@@ -874,11 +895,13 @@ builder.defineStreamHandler(async ({ id }, req) => {
                             {
                                 name: 'LACartoons (proxy)',
                                 title: streamResult.title || 'HD',
-                                url: proxyUrl(streamResult.url, 'm3u8', RPMVID_HEADERS),
+                                // El stream proxiado tiene CORS + desofuscacion de chunks
+                                // y funciona tanto en Stremio desktop como en Stremio Web.
+                                url: proxyUrl(streamResult.url, 'm3u8', RPMVID_HEADERS, true),
                                 behaviorHints: { bingeGroup: 'lacartoons-rpmvid' },
                             }
                         ]
-                    }
+                    };
                 } catch (err) {
                     console.error('[PROCESADOR ERROR] Fallo descifrado nativo, usando fallback...', err.message);
                 }
@@ -928,6 +951,16 @@ builder.defineStreamHandler(async ({ id }, req) => {
 // ==================== Servidor ====================
 const app = express();
 
+// ==================== CABECERAS CORS GLOBALES ====================
+// Permite que Stremio y otros clientes se conecten desde cualquier origen
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+    next();
+});
+// =================================================================
+
 // -------------------- Proxy HLS / MP4 --------------------
 // Varios hosts (ok.ru/okcdn.ru, cubeembed.rpmvid.com, etc.) exigen cabeceras
 // (Referer/Origin/Cookie) y no envian CORS, por lo que el navegador (Stremio
@@ -945,7 +978,7 @@ function setCors(res) {
 
 // Reescribe una playlist m3u8: cada URI hija se re-enruta por el proxy,
 // conservando los mismos headers que se usaron para la playlist padre.
-function rewritePlaylist(text, baseUrl, headers) {
+function rewritePlaylist(text, baseUrl, headers, inheritSearch = false) {
     const isMaster = text.includes('#EXT-X-STREAM-INF');
     const childKind = isMaster ? 'm3u8' : 'ts';
 
@@ -953,27 +986,39 @@ function rewritePlaylist(text, baseUrl, headers) {
     // porque new URL() desecha los query params del baseUrl al resolver relativas.
     const baseObj = new URL(baseUrl);
 
+    /**
+     * Resuelve una URI relativa o absoluta contra baseUrl, heredando los
+     * query-params del padre si el hijo no los trae propios (tokens de auth).
+     */
+    function resolveChildUrl(uri, kind) {
+        try {
+            const absObj = new URL(uri, baseUrl);
+            if (inheritSearch) {
+                for (const [k, v] of baseObj.searchParams.entries()) {
+                    if (!absObj.searchParams.has(k)) absObj.searchParams.set(k, v);
+                }
+            }
+            return proxyUrl(absObj.href, kind, headers);
+        } catch (_) {
+            return proxyUrl(uri, kind, headers);
+        }
+    }
+
     return text.split(/\r?\n/).map(line => {
         const trimmed = line.trim();
         if (!trimmed) return line;
 
         if (trimmed.startsWith('#')) {
-            // Reescribe URIs embebidas (p.ej. claves de cifrado EXT-X-KEY).
+            // Reescribe URIs embebidas en directivas (#EXT-X-KEY, #EXT-X-MEDIA, etc.)
             return line.replace(/URI="([^"]+)"/g, (_, uri) => {
-                const absObj = new URL(uri, baseUrl);
-                // Heredar tokens (no sobreescribir si el hijo ya trae propios)
-                for (const [k, v] of baseObj.searchParams.entries()) {
-                    if (!absObj.searchParams.has(k)) absObj.searchParams.set(k, v);
-                }
-                return `URI="${proxyUrl(absObj.href, 'ts', headers)}"`;
+                // EXT-X-MEDIA lleva URI de playlists hijas de audio/subtitulos
+                // (tambien son m3u8, no ts)
+                const kind = /\.m3u8/i.test(uri) ? 'm3u8' : (isMaster ? 'm3u8' : 'ts');
+                return `URI="${resolveChildUrl(uri, kind)}"`;
             });
         }
 
-        const absObj = new URL(trimmed, baseUrl);
-        for (const [k, v] of baseObj.searchParams.entries()) {
-            if (!absObj.searchParams.has(k)) absObj.searchParams.set(k, v);
-        }
-        return proxyUrl(absObj.href, childKind, headers);
+        return resolveChildUrl(trimmed, childKind);
     }).join('\n');
 }
 
@@ -984,9 +1029,9 @@ app.get('/p/:enc', async (req, res) => {
     const isPlaylist = raw.endsWith('.m3u8');
     const enc = raw.replace(/\.(m3u8|ts|mp4)$/, '');
 
-    let targetUrl, headers;
+    let targetUrl, headers, payload;
     try {
-        const payload = JSON.parse(b64urlDecode(enc));
+        payload = JSON.parse(b64urlDecode(enc));
         targetUrl = payload.u;
         headers = payload.h || {};
     } catch {
@@ -1035,8 +1080,15 @@ app.get('/p/:enc', async (req, res) => {
         }
 
         if (isPlaylist || ct.includes('mpegurl')) {
-            const text = typeof upstream.data === 'string' ? upstream.data : String(upstream.data);
-            const rewritten = rewritePlaylist(text, targetUrl, headers);
+            let text = typeof upstream.data === 'string' ? upstream.data : String(upstream.data);
+
+            // Especial para RPMVid: normalizar el master (fix audio tracks y variantes)
+            if (payload.r && text.includes('#EXT-X-STREAM-INF')) {
+                const rpmvid = require('./rpmvid.js');
+                text = rpmvid.normalizeMasterPlaylist(text);
+            }
+
+            const rewritten = rewritePlaylist(text, targetUrl, headers, !!payload.r);
             res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
             return res.send(rewritten);
         }
@@ -1082,12 +1134,24 @@ app.get('/p/:enc', async (req, res) => {
 
 app.use(addon.getRouter(builder.getInterface()));
 
+// ==================== Inicialización del Servidor ====================
+const finalPort = process.env.PORT || 7000;
+
+// ==================== RUTA DE SALUD (HEALTH CHECK) ====================
+// Esta ruta es necesaria para que Render y los monitores externos (UptimeRobot)
+// sepan que el servicio está activo. Sin esto, Render apaga el servicio gratuito.
+app.get('/', (req, res) => {
+    res.status(200).send('LACartoons Addon is running! OK');
+});
+// ========================================================================
+
 app.listen(PORT, () => {
-    console.log('');
-    console.log('================================================');
-    console.log('         LACartoons Addon  v1.0.0');
-    console.log('  http://127.0.0.1:' + PORT + '/manifest.json');
-    console.log('================================================');
+    console.log(`================================================`);
+    console.log(`         LACartoons Addon Inicializado`);
+    console.log(`         Versión: v 1.0.0 (estable)`);
+    console.log(`         Puerto Activo: ${finalPort}`);
+    console.log(`         URL Local: ${PUBLIC_URL}/manifest.json`);
+    console.log(`================================================`);
     console.log('');
 
     buildFullCatalog()
@@ -1097,4 +1161,4 @@ app.listen(PORT, () => {
 
 // Cierre ordenado: liberar el navegador Playwright si quedo abierto.
 process.on('SIGINT', async () => { await closeBrowser(); process.exit(0); });
-process.on('SIGTERM', async () => { await closeBrowser(); process.exit(0); });
+process.on('SIGTERM', async () => { await closeBrowser(); process.exit(0); })
