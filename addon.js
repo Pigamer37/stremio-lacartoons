@@ -113,7 +113,7 @@ const PUBLIC_URL = (process.env.PUBLIC_URL || `http://127.0.0.1:${PORT}`)
 const OKRU_HEADERS = {
     'Referer': 'https://ok.ru/',
     'Origin': 'https://ok.ru',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'User-Agent': UA,
 };
 
 const RPMVID_HEADERS = {
@@ -182,19 +182,30 @@ async function extractOkRuStreams(iframeSrc) {
             seen.add(`${f.height}n`);
             return true;
         })
-        .map(f => ({
-            name: 'LACartoons',
-            title: `${f.height}p`,
-            url: f.url,
-            behaviorHints: {
-                bingeGroup: 'lacartoons-okru-dir',
-                notWebReady: true,
-                proxyHeaders: {
-                    "request": OKRU_HEADERS
-                },
-                videoSize: f.filesize
+        .map(f => {
+            for (const header in OKRU_HEADERS) { //añade/sobreescribe headers del objeto sobre los que nos da yt-dlp
+                if (!Object.hasOwn(OKRU_HEADERS, header)) continue;
+                f.http_headers[header] = OKRU_HEADERS[header];
             }
-        }));
+            return {
+                name: 'LACartoons',
+                title: `${f.height}p\n${info.title}`,
+                url: f.url,
+                behaviorHints: {
+                    bingeGroup: 'lacartoons-okru-dir',
+                    notWebReady: true,
+                    proxyHeaders: {
+                        "request": f.http_headers
+                    },
+                    videoSize: f.filesize
+                }
+            }
+        });
+    (info.formats || []).filter(f => f._type === "url_transparent") //YT embeds
+    .forEach(f => {
+        const ftransf = extractYouTubeStreams(f.url).forEach(stream => stream.title += `\n${info.title}`)
+        native = native.concat(ftransf);
+    });
 
     seen.clear();
 
@@ -206,17 +217,23 @@ async function extractOkRuStreams(iframeSrc) {
             seen.add(f.height);
             return true;
         })
-        .map(f => ({
-            name: 'LACartoons (proxy)',
-            title: `${f.height}p`,
-            // Servimos la lista de reproduccion via nuestro proxy: reescribe
-            // los segmentos y añade las cabeceras de ok.ru + CORS, de modo que
-            // el stream sea reproducible en cualquier cliente, incluida la web.
-            url: proxyUrl(f.url, 'm3u8', OKRU_HEADERS),
-            behaviorHints: {
-                bingeGroup: 'lacartoons-hls',
-            },
-        }));
+        .map(f => {
+            for (const header in OKRU_HEADERS) { //añade/sobreescribe headers del objeto sobre los que nos da yt-dlp
+                if (!Object.hasOwn(OKRU_HEADERS, header)) continue;
+                f.http_headers[header] = OKRU_HEADERS[header];
+            }
+            return {
+                name: 'LACartoons (proxy)',
+                title: `${f.height}p\n${info.title}`,
+                // Servimos la lista de reproduccion via nuestro proxy: reescribe
+                // los segmentos y añade las cabeceras de ok.ru + CORS, de modo que
+                // el stream sea reproducible en cualquier cliente, incluida la web.
+                url: proxyUrl(f.url, 'm3u8', f.http_headers),
+                behaviorHints: {
+                    bingeGroup: 'lacartoons-hls',
+                }
+            }
+        });
 
     return native.concat(proxied);
 }
@@ -224,8 +241,13 @@ async function extractOkRuStreams(iframeSrc) {
 /** Extrae IDs de videos de YouTube de las URL y formatea los streams */
 async function extractYouTubeStreams(iframeSrc) {
     try {
-        const ytURL = new URL(iframeSrc);
-        let ytId = ytURL.searchParams.get('v') || ytURL.pathname.split('/').pop();
+        let ytId;
+        if (iframeSrc.trim().length === 11) { //just ytID
+            ytId = iframeSrc.trim();
+        } else {
+            const ytURL = new URL(iframeSrc);
+            ytId = ytURL.searchParams.get('v') || ytURL.pathname.split('/').pop();
+        }
         return [{
             name: 'LACartoons',
             title: 'YouTube',
