@@ -189,7 +189,7 @@ async function extractOkRuStreams(iframeSrc) {
             }
             return {
                 name: 'LACartoons',
-                title: `${f.height}p\n${info.title}`,
+                title: `${f.height}p\n${info.title || ""}`,
                 url: f.url,
                 behaviorHints: {
                     bingeGroup: 'lacartoons-okru-dir',
@@ -203,7 +203,7 @@ async function extractOkRuStreams(iframeSrc) {
         });
     (info.formats || []).filter(f => f._type === "url_transparent") //YT embeds
     .forEach(f => {
-        const ftransf = extractYouTubeStreams(f.url).forEach(stream => stream.title += `\n${info.title}`)
+        const ftransf = extractYouTubeStreams(f.url).forEach(stream => stream.title += `\n${info.title || ""}`)
         native = native.concat(ftransf);
     });
 
@@ -224,7 +224,7 @@ async function extractOkRuStreams(iframeSrc) {
             }
             return {
                 name: 'LACartoons (proxy)',
-                title: `${f.height}p\n${info.title}`,
+                title: `${f.height}p\n${info.title || ""}`,
                 // Servimos la lista de reproduccion via nuestro proxy: reescribe
                 // los segmentos y añade las cabeceras de ok.ru + CORS, de modo que
                 // el stream sea reproducible en cualquier cliente, incluida la web.
