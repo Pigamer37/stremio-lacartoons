@@ -1,8 +1,9 @@
 'use strict';
 
-const { test, it, describe, before } = require('node:test');
+const { test, it, describe, before, mock } = require('node:test');
+const { moxios } = require('./mock-axios.js');
 const assert = require('node:assert/strict');
-const { normalizeMasterPlaylist, fetchVideoData, videoIdFromIframe, isRpmvidIframe, collectHlsUrls, EMBED_ORIGIN } = require('../rpmvid.js');
+const { normalizeMasterPlaylist, resolveLiveMaster, fetchVideoData, videoIdFromIframe, isRpmvidIframe, collectHlsUrls, EMBED_ORIGIN } = require('../rpmvid.js');
 
 describe('normalizeMasterPlaylist', () => {
     let output;
@@ -40,6 +41,11 @@ describe('videoIdFromIframe', () => {
         const res = videoIdFromIframe('https://youtube.com');
         assert.equal(res, null);
     });
+
+    it('extrae la id correctamente', () => {
+        const res = videoIdFromIframe('https://cubeembed.rpmvid.com/#fm8vz');
+        assert.equal(res, 'fm8vz');
+    })
 })
 
 test('isRpmvidIframe detecta dominios rpmvid y cubeembed', () => {
@@ -55,18 +61,35 @@ test('collectHlsUrls colecciona y deduplica urls válidas', () => {
     assert.deepStrictEqual(res, ["myvideo.m3u8", `${EMBED_ORIGIN}/tiktokvideo.mp4`], "La lista de vídeos no es la esperada");
 })
 
-describe('fetchVideoData', { todo: "TODO: Mock html fetched data" }, (test) => {
+describe('fetchVideoData', { todo: "TODO: arreglar flujo de extracción nativa" }, () => {
     /*fetch = test.mock.fn((input) => {
         return {
             text: () => 'Hello World',
             json: () => { data: "test" }
         };
     });*/
+    const axios = require('axios');
+    mock.method(axios, 'get', moxios);
+
     it('no lanza errores con una función sa() presente', async () => {
-        //await fetchVideoData(); //si lanza error el test falla
+        assert.doesNotThrow(await fetchVideoData('fm8vz'));
+    });
+})
+
+describe('resolveLiveMaster', { todo: "TODO: arreglar flujo de extracción nativa" }, () => {
+    const axios = require('axios');
+    mock.method(axios, 'get', moxios);
+
+    let output;
+    before(async () => {
+        output = await resolveLiveMaster('fm8vz');
+    })
+
+    it('extrae una playlist válida', async () => {
+        assert.ok(output.playlist.startsWith('#EXTM3U'), "Playlist resulta con formato incorrecto");
     });
 
     it('extrae el stream de una URL conocida de cubeembed', async () => {
-        //await fetchVideoData();
+        assert.ok(output.url.endsWith('.mp4') || output.url.endsWith('.m3u8'));
     });
 })
