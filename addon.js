@@ -969,7 +969,7 @@ builder.defineStreamHandler(async ({ id }, req) => {
         if (iframeSrc && !isRpmvid) {
             if (YT_HOSTS.some(h => iframeSrc.includes(h))) {
                 console.log('[STREAM] Extrayendo URL de YouTube...');
-                const streams = await extractYouTubeStreams(iframeSrc);
+                const streams = extractYouTubeStreams(iframeSrc);
                 if (streams.length) return { streams };
             } else {
                 console.log('[STREAM] Host conocido, usando yt-dlp...');

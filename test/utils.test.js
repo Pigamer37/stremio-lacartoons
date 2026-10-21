@@ -24,3 +24,11 @@ test('pickSafeHeaders elimina headers indeseados y/o que comienzan con :', () =>
   });
   assert.deepStrictEqual({ "User-Agent": "Debería mantenerse" }, output);
 })
+
+test('extractYouTubeStreams extracts correct streams', () => {
+  const streams = extractYouTubeStreams('https://youtu.be/2qgxAHW1w78?mockParam=2');
+  streams.concat(extractYouTubeStreams('https://www.youtube.com/watch?v=2qgxAHW1w78'));
+  for (const stream of streams) {
+    assert.deepStrictEqual(stream.ytId, '2qgxAHW1w78');
+  }
+})

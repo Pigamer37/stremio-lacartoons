@@ -28,10 +28,10 @@ function pickSafeHeaders(rawHeaders) {
 }
 
 /** Extrae IDs de videos de YouTube de las URL y formatea los streams */
-async function extractYouTubeStreams(iframeSrc) {
+function extractYouTubeStreams(iframeSrc) {
     try {
         const ytURL = new URL(iframeSrc);
-        let ytId = ytURL.searchParams.get('v') || ytURL.pathname.split('/').pop();
+        let ytId = ytURL.searchParams.get('v') || ytURL.pathname.split('/').pop().substring(0, 11);
         return [{
             name: 'LACartoons',
             title: 'YouTube',
